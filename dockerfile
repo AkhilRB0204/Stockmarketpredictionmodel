@@ -15,10 +15,3 @@ COPY app/ app/
 
 # Default command: run the real-time predictor
 CMD ["python", "app/main.py"]
-
-# -----------------------------
-# - Using slim Python image to keep things small
-# - Installing requirements before copying code for faster rebuilds
-# - All our scripts live in /app folder
-# - When container runs, it just starts main.py
-# - --no-cache-dir keeps the image from getting too big
