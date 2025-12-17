@@ -24,7 +24,7 @@ while True:
         latest_features = live_data.iloc[-1][["SMA_5", "SMA_20", "Volatility"]].values.astype(float)
 
         # Last actual price as a float
-        last_price = float(live_data["Close"].iloc[-1])
+        last_price = float(live_data["Close"].iloc[-1].item())
 
         # Predict the next return
         predicted_return = model.predict([latest_features])[0]
