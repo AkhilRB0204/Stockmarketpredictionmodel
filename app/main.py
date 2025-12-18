@@ -82,6 +82,7 @@ while True:
             df_monthly = df_plot.resample('M').last()
 
             # Plot actual vs predicted
+            df_resampled = df_plot.resample('5T').last()  # every 5 minutes
             plt.plot(df_monthly.index, df_monthly["Actual"], label="Actual", color="#1f77b4", linewidth=2)
             plt.plot(df_monthly.index, df_monthly["Predicted"], label="Predicted", color="#ff7f0e", linestyle="--", linewidth=2)
 
