@@ -1,17 +1,21 @@
-# Start from a lightweight Python 3.11 image
-FROM python:3.11-slim
+# Use a lightweight official Python image
+FROM python:3.10-slim
 
-# Set the working directory inside the container
+# Set the working directory inside the container to /app
+# All commands will run relative to this directory
 WORKDIR /app
 
-# Copy the dependencies first (helps with caching)
+# Copy the dependency list first
+# This allows Docker to cache installed packages
 COPY requirements.txt .
 
-# Install all Python dependencies
+# Install Python dependencies
+# --no-cache-dir keeps the image smaller
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all the app code into the container
-COPY app/ app/
+# Copy the application code into the container
+COPY app/ .
 
-# Default command: run the real-time predictor
-CMD ["python", "app/main.py"]
+# Command that runs when the container starts
+# Executes the main real-time stock prediction script
+CMD ["python", "main.py"]

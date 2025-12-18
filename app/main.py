@@ -8,61 +8,80 @@ import os
 os.makedirs("/app/output", exist_ok=True)
 
 TICKER = "AAPL"
+RETRAIN_EVERY = 30  # retrain model every 30 iterations
 
-print("Training the model with some historical data...")
+print("Training the model with historical data...")
 
-# Get recent stock data and calculate features
+# Initial training
 historical = add_features(get_live_data(TICKER))
-
-# Train the ML model once
 model = train_model(historical)
 
-# Lists to store live data for plotting
+# Storage for plotting
 timestamps = []
 actual_prices = []
 predicted_prices = []
+
+counter = 0
 
 print("Starting real-time predictions...\n")
 
 while True:
     try:
-        # Fetch the latest data
+        # Fetch latest data
         live_data = add_features(get_live_data(TICKER))
 
-        # Latest features
-        latest_features = live_data.iloc[-1][["SMA_5", "SMA_20", "Volatility"]].values.astype(float)
+        # Guard against duplicate candles
+        if timestamps and live_data.index[-1] == timestamps[-1]:
+            print("No new candle yet...")
+            time.sleep(60)
+            continue
 
-        # Last actual price
+        # Extract features safely
+        feature_cols = ["SMA_5", "SMA_20", "Volatility"]
+        latest_features = (
+            live_data[feature_cols]
+            .iloc[-1]
+            .to_numpy(dtype=float)
+        )
+
+        # Last actual price (fixed float warning)
         last_price = float(live_data["Close"].iloc[-1].item())
 
         # Predict next return
         predicted_return = model.predict([latest_features])[0]
 
-        # Convert predicted return into predicted price
+        # Convert return to price
         predicted_price = last_price * (1 + predicted_return)
 
-        # Append to lists for plotting
+        # Store values
         timestamps.append(live_data.index[-1])
         actual_prices.append(last_price)
         predicted_prices.append(predicted_price)
 
-        # Print to console
+        # Console output
         print(f"Last: ${last_price:.2f} | Predicted next: ${predicted_price:.2f}")
 
-        # --- Plot live graph ---
-        plt.clf()  # Clear previous plot
-        plt.plot(timestamps, actual_prices, label="Actual", marker='o')
-        plt.plot(timestamps, predicted_prices, label="Predicted", linestyle='--', marker='x')
+        # ---- Plot ----
+        plt.clf()
+        plt.plot(timestamps, actual_prices, label="Actual", marker="o")
+        plt.plot(timestamps, predicted_prices, label="Predicted", linestyle="--", marker="x")
         plt.title(f"{TICKER} Live Stock Price Prediction")
         plt.xlabel("Time")
         plt.ylabel("Price (USD)")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig("/app/output/live_stock_plot.png")  # Save graph
-        plt.pause(0.1)  # Small pause to update
+        plt.savefig("/app/output/live_stock_plot.png")
+        plt.close()  # prevent memory leaks
 
-        # Wait 60 seconds
+        # Retrain model periodically
+        counter += 1
+        if counter % RETRAIN_EVERY == 0:
+            print("Retraining model with latest data...")
+            historical = add_features(get_live_data(TICKER))
+            model = train_model(historical)
+
+        # Wait before next poll
         time.sleep(60)
 
     except Exception as e:
