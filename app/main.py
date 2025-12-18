@@ -1,10 +1,13 @@
 import time
+import matplotlib
+matplotlib.use("Agg")  # ensure plotting works in Docker/headless
+
 import matplotlib.pyplot as plt
 from data import get_live_data, add_features
 from model import train_model
 import os
 
-# Ensure output folder exists
+# Make sure the output folder exists
 os.makedirs("/app/output", exist_ok=True)
 
 TICKER = "AAPL"
@@ -30,7 +33,7 @@ while True:
         # Fetch latest data
         live_data = add_features(get_live_data(TICKER))
 
-        # Guard against duplicate candles
+        # skip if no new candle yet
         if timestamps and live_data.index[-1] == timestamps[-1]:
             print("No new candle yet...")
             time.sleep(60)
@@ -38,13 +41,9 @@ while True:
 
         # Extract features safely
         feature_cols = ["SMA_5", "SMA_20", "Volatility"]
-        latest_features = (
-            live_data[feature_cols]
-            .iloc[-1]
-            .to_numpy(dtype=float)
-        )
+        latest_features = live_data[feature_cols].iloc[-1].to_numpy(dtype=float)
 
-        # Last actual price (fixed float warning)
+        # Last actual price
         last_price = float(live_data["Close"].iloc[-1].item())
 
         # Predict next return
@@ -53,23 +52,33 @@ while True:
         # Convert return to price
         predicted_price = last_price * (1 + predicted_return)
 
-        # Store values
+        # Store for plotting
         timestamps.append(live_data.index[-1])
         actual_prices.append(last_price)
         predicted_prices.append(predicted_price)
 
-        # Console output
+        # Print to console
         print(f"Last: ${last_price:.2f} | Predicted next: ${predicted_price:.2f}")
 
-        # ---- Plot ----
-        plt.clf()
-        plt.plot(timestamps, actual_prices, label="Actual", marker="o")
-        plt.plot(timestamps, predicted_prices, label="Predicted", linestyle="--", marker="x")
-        plt.title(f"{TICKER} Live Stock Price Prediction")
+        # ----- Plotting section -----
+        plt.figure(figsize=(14,6))  # bigger figure
+        plt.plot(timestamps, actual_prices, label="Actual", color="#1f77b4", linewidth=2)  # solid line
+        # dashed line for predictions; replace None with np.nan if needed
+        preds = [p if p is not None else float('nan') for p in predicted_prices]
+        plt.plot(timestamps, preds, label="Predicted", color="#ff7f0e", linestyle="--", linewidth=2)
+
+        # Title, labels, grid
+        plt.title(f"{TICKER} Live Stock Price Prediction", fontsize=16, fontweight='bold')
         plt.xlabel("Time")
         plt.ylabel("Price (USD)")
+        plt.grid(True, linestyle='--', linewidth=0.5)
+        plt.xticks(rotation=45)
+
+        # Dynamic y-axis
+        all_prices = [p for p in actual_prices + [p for p in predicted_prices if p is not None]]
+        plt.ylim(min(all_prices)*0.995, max(all_prices)*1.005)
+
         plt.legend()
-        plt.grid(True)
         plt.tight_layout()
         plt.savefig("/app/output/live_stock_plot.png")
         plt.close()  # prevent memory leaks
