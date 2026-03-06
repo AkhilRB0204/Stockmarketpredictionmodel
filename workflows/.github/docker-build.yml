@@ -1,6 +1,5 @@
 name: Docker Build
 
-# Trigger workflow on push or PR to main branch
 on:
   push:
     branches: [ "main" ]
@@ -12,25 +11,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout your repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker Buildx (optional but recommended for multi-platform builds)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Step 3: Log in to Docker Hub 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-           username: ${{ secrets.DOCKER_USERNAME }}
-           password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 4: Build the Docker image
-      - name: Build Docker image
-        run: docker build -t stock-predictor .
-
-      #Step 5 : Push the Docker image to Docker Hub
-      - name: Push Docker image
-        run: docker push stock-predictor
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64          # AMD64 for servers, ARM64 for Mac M1/M2/M3
+          push: ${{ github.event_name == 'push' }}   # only push on merge to main, not on PRs
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/stock-predictor:latest
+            ${{ secrets.DOCKER_USERNAME }}/stock-predictor:${{ github.sha }}
+          cache-from: type=gha                        # GitHub Actions layer cache
+          cache-to:   type=gha,mode=max
